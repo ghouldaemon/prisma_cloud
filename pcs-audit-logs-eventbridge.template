@@ -1,0 +1,100 @@
+{
+  "AWSTemplateFormatVersion" : "2010-09-09",
+  "Description" : "Prisma Cloud IAM Role to set read permissions",
+  "Resources" : {
+    "PrismaEventBridgeRole" : {
+      "Type" : "AWS::IAM::Role",
+      "Properties" : {
+        "AssumeRolePolicyDocument" : {
+          "Version" : "2012-10-17",
+          "Statement" : [ {
+            "Effect" : "Allow",
+            "Principal" : {
+              "Service" : "events.amazonaws.com"
+            },
+            "Action" : "sts:AssumeRole"
+          } ]
+        },
+        "Policies" : [ {
+          "PolicyName" : "PrismaCloud-EB-ApiDestination-Policy",
+          "PolicyDocument" : {
+            "Version" : "2012-10-17",
+            "Statement" : [ {
+              "Action" : [ "events:*" ],
+              "Effect" : "Allow",
+              "Resource" : "*"
+            } ]
+          }
+        } ]
+      }
+    },
+    "AWSCloudFormationStackSetAdminRole" : {
+      "Type" : "AWS::IAM::Role",
+      "Properties" : {
+        "AssumeRolePolicyDocument" : {
+          "Version" : "2012-10-17",
+          "Statement" : [ {
+            "Effect" : "Allow",
+            "Principal" : {
+              "Service" : "cloudformation.amazonaws.com"
+            },
+            "Action" : "sts:AssumeRole"
+          } ]
+        },
+        "ManagedPolicyArns" : [ "arn:aws:iam::aws:policy/AdministratorAccess" ]
+      }
+    },
+    "AWSCloudFormationStackSetExecutionRole" : {
+      "Type" : "AWS::IAM::Role",
+      "Properties" : {
+        "AssumeRolePolicyDocument" : {
+          "Version" : "2012-10-17",
+          "Statement" : [ {
+            "Effect" : "Allow",
+            "Principal" : {
+              "AWS" : {
+                "Fn::GetAtt" : [ "AWSCloudFormationStackSetAdminRole", "Arn" ]
+              }
+            },
+            "Action" : "sts:AssumeRole"
+          } ]
+        },
+        "ManagedPolicyArns" : [ "arn:aws:iam::aws:policy/AdministratorAccess" ]
+      }
+    },
+    "PrismaEBStackSet" : {
+      "Type" : "AWS::CloudFormation::StackSet",
+      "Properties" : {
+        "StackSetName" : "PrismaEBStackSetName",
+        "Parameters" : [ {
+          "ParameterKey" : "PrismaEventBridgeIAMRoleName",
+          "ParameterValue" : {
+            "Ref" : "PrismaEventBridgeRole"
+          }
+        }, {
+          "ParameterKey" : "PrismaEventBridgeRuleName",
+          "ParameterValue" : "prisma-cloud-eb-a-1072679844523138048-audit-logs"
+        } ],
+        "PermissionModel" : "SELF_MANAGED",
+        "AdministrationRoleARN" : {
+          "Fn::GetAtt" : [ "AWSCloudFormationStackSetAdminRole", "Arn" ]
+        },
+        "ExecutionRoleName" : {
+          "Ref" : "AWSCloudFormationStackSetExecutionRole"
+        },
+        "TemplateBody" : "{\"AWSTemplateFormatVersion\":\"2010-09-09\",\"Description\":\"Prisma Cloud IAM Role to set read permissions\",\"Parameters\":{\"PrismaEventBridgeRuleName\":{\"Type\":\"String\",\"Description\":\"Prisma EventBridge rule name. The default value and the allowed value be filled with the user selected rule name in Prisma\",\"Default\":\"PrismaEBRule\"},\"PrismaEventBridgeIAMRoleName\":{\"Type\":\"String\",\"Description\":\"Prisma EventBridge IAM role name. The default value and the allowed value be filled with the user selected EB role name in Prisma\",\"Default\":\"PrismaEBRole\"}},\"Conditions\":{\"IsApiDestinationSupported\":{\"Fn::Not\":[{\"Condition\":\"IsApiDestinationNotSupported\"}]},\"IsApiDestinationNotSupported\":{\"Fn::Or\":[{\"Fn::Equals\":[{\"Ref\":\"AWS::Region\"},\"ap-northeast-3\"]},{\"Fn::Equals\":[{\"Ref\":\"AWS::Region\"},\"ap-southeast-3\"]}]}},\"Resources\":{\"PrismaEBRule\":{\"Type\":\"AWS::Events::Rule\",\"Condition\":\"IsApiDestinationSupported\",\"Properties\":{\"Name\":{\"Ref\":\"PrismaEventBridgeRuleName\"},\"EventPattern\":{\"detail-type\":[\"AWS API Call via CloudTrail\"],\"detail\":{\"readOnly\":[false],\"eventName\":[{\"anything-but\":{\"prefix\":\"AssumeRole\"}}]}},\"Targets\":[{\"Id\":\"prisma-eb-api-dest\",\"Arn\":{\"Fn::GetAtt\":[\"PrismaEBApiDestination\",\"Arn\"]},\"RoleArn\":{\"Fn::Join\":[\"\",[\"arn:aws:iam::\",{\"Ref\":\"AWS::AccountId\"},\":role/\",{\"Ref\":\"PrismaEventBridgeIAMRoleName\"}]]}}],\"State\":\"DISABLED\"}},\"PrismaEBRuleForwardToEB\":{\"Type\":\"AWS::Events::Rule\",\"Condition\":\"IsApiDestinationNotSupported\",\"Properties\":{\"Name\":{\"Ref\":\"PrismaEventBridgeRuleName\"},\"EventPattern\":{\"detail-type\":[\"AWS API Call via CloudTrail\"],\"detail\":{\"readOnly\":[false],\"eventName\":[{\"anything-but\":{\"prefix\":\"AssumeRole\"}}]}},\"Targets\":[{\"Id\":\"prisma-eb-eb-dest\",\"Arn\":{\"Fn::Join\":[\"\",[\"arn:aws:events:us-east-1:\",{\"Ref\":\"AWS::AccountId\"},\":event-bus/default\"]]},\"RoleArn\":{\"Fn::Join\":[\"\",[\"arn:aws:iam::\",{\"Ref\":\"AWS::AccountId\"},\":role/\",{\"Ref\":\"PrismaEventBridgeIAMRoleName\"}]]}}],\"State\":\"DISABLED\"}},\"PrismaEBConection\":{\"Type\":\"AWS::Events::Connection\",\"Condition\":\"IsApiDestinationSupported\",\"Properties\":{\"AuthorizationType\":\"API_KEY\",\"AuthParameters\":{\"ApiKeyAuthParameters\":{\"ApiKeyName\":\"prisma-access-key\",\"ApiKeyValue\":\"b8534b07-9036-47f7-a8e6-d995d41bfa67\"},\"InvocationHttpParameters\":{\"HeaderParameters\":[{\"IsValueSecret\":true,\"Key\":\"prisma-aws-eventbridge-webhook-key\",\"Value\":\"sd5zuqn7FfIs26ZrtVU6WvzGQ\"}]}}}},\"PrismaEBApiDestination\":{\"Type\":\"AWS::Events::ApiDestination\",\"Condition\":\"IsApiDestinationSupported\",\"Properties\":{\"ConnectionArn\":{\"Fn::GetAtt\":[\"PrismaEBConection\",\"Arn\"]},\"HttpMethod\":\"POST\",\"InvocationEndpoint\":\"https://aws-eventbridge-app.prismacloud.io/eventbridge/webhook/v1/aws\",\"InvocationRateLimitPerSecond\":300}},\"PrismaEBRuleSts\":{\"Type\":\"AWS::Events::Rule\",\"Condition\":\"IsApiDestinationSupported\",\"Properties\":{\"Name\":{\"Fn::Join\":[\"\",[{\"Ref\":\"PrismaEventBridgeRuleName\"},\"-sts\"]]},\"EventPattern\":{\"detail-type\":[\"AWS API Call via CloudTrail\"],\"detail\":{\"eventName\":[\"AssumeRole\",\"AssumeRoleWithSAML\",\"AssumeRoleWithWebIdentity\"]}},\"Targets\":[{\"Id\":\"prisma-eb-api-dest\",\"Arn\":{\"Fn::GetAtt\":[\"PrismaEBApiDestination\",\"Arn\"]},\"RoleArn\":{\"Fn::Join\":[\"\",[\"arn:aws:iam::\",{\"Ref\":\"AWS::AccountId\"},\":role/\",{\"Ref\":\"PrismaEventBridgeIAMRoleName\"}]]}}],\"State\":\"DISABLED\"}},\"PrismaEBRuleForwardToEBSts\":{\"Type\":\"AWS::Events::Rule\",\"Condition\":\"IsApiDestinationNotSupported\",\"Properties\":{\"Name\":{\"Fn::Join\":[\"\",[{\"Ref\":\"PrismaEventBridgeRuleName\"},\"-sts\"]]},\"EventPattern\":{\"detail-type\":[\"AWS API Call via CloudTrail\"],\"detail\":{\"eventName\":[\"AssumeRole\",\"AssumeRoleWithSAML\",\"AssumeRoleWithWebIdentity\"]}},\"Targets\":[{\"Id\":\"prisma-eb-eb-dest\",\"Arn\":{\"Fn::Join\":[\"\",[\"arn:aws:events:us-east-1:\",{\"Ref\":\"AWS::AccountId\"},\":event-bus/default\"]]},\"RoleArn\":{\"Fn::Join\":[\"\",[\"arn:aws:iam::\",{\"Ref\":\"AWS::AccountId\"},\":role/\",{\"Ref\":\"PrismaEventBridgeIAMRoleName\"}]]}}],\"State\":\"DISABLED\"}}}}",
+        "StackInstancesGroup" : [ {
+          "DeploymentTargets" : {
+            "Accounts" : [ {
+              "Ref" : "AWS::AccountId"
+            } ]
+          },
+          "Regions" : [ "ap-south-1", "eu-north-1", "eu-west-3", "eu-west-2", "eu-west-1", "ap-northeast-3", "ap-northeast-2", "ap-northeast-1", "ca-central-1", "sa-east-1", "ap-southeast-1", "ap-southeast-2", "eu-central-1", "us-east-1", "us-east-2", "us-west-1", "us-west-2" ]
+        } ],
+        "OperationPreferences" : {
+          "RegionConcurrencyType" : "PARALLEL"
+        }
+      }
+    }
+  }
+}
