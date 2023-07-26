@@ -5,6 +5,16 @@
     "PrismaEventBridgeRole" : {
       "Type" : "AWS::IAM::Role",
       "Properties" : {
+        "Tags": [
+          {
+            "Key": "git_repo",
+            "Value": "prisma_cloud"
+          },
+          {
+            "Key": "git_org",
+            "Value": "ghouldaemon"
+          }
+        ],
         "AssumeRolePolicyDocument" : {
           "Version" : "2012-10-17",
           "Statement" : [ {
@@ -31,6 +41,16 @@
     "AWSCloudFormationStackSetAdminRole" : {
       "Type" : "AWS::IAM::Role",
       "Properties" : {
+        "Tags": [
+          {
+            "Key": "git_repo",
+            "Value": "prisma_cloud"
+          },
+          {
+            "Key": "git_org",
+            "Value": "ghouldaemon"
+          }
+        ],
         "AssumeRolePolicyDocument" : {
           "Version" : "2012-10-17",
           "Statement" : [ {
@@ -47,6 +67,16 @@
     "AWSCloudFormationStackSetExecutionRole" : {
       "Type" : "AWS::IAM::Role",
       "Properties" : {
+        "Tags": [
+          {
+            "Key": "git_repo",
+            "Value": "prisma_cloud"
+          },
+          {
+            "Key": "git_org",
+            "Value": "ghouldaemon"
+          }
+        ],
         "AssumeRolePolicyDocument" : {
           "Version" : "2012-10-17",
           "Statement" : [ {
@@ -65,6 +95,16 @@
     "PrismaEBStackSet" : {
       "Type" : "AWS::CloudFormation::StackSet",
       "Properties" : {
+        "Tags": [
+          {
+            "Key": "git_repo",
+            "Value": "prisma_cloud"
+          },
+          {
+            "Key": "git_org",
+            "Value": "ghouldaemon"
+          }
+        ],
         "StackSetName" : "PrismaEBStackSetName",
         "Parameters" : [ {
           "ParameterKey" : "PrismaEventBridgeIAMRoleName",

@@ -25,6 +25,16 @@
     "PrismaCloudRole" : {
       "Type" : "AWS::IAM::Role",
       "Properties" : {
+        "Tags": [
+          {
+            "Key": "git_repo",
+            "Value": "prisma_cloud"
+          },
+          {
+            "Key": "git_org",
+            "Value": "ghouldaemon"
+          }
+        ],
         "ManagedPolicyArns" : [ {
           "Fn::Join" : [ "", [ "arn:aws:iam::aws:policy/SecurityAudit" ] ]
         }, {
